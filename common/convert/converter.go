@@ -12,13 +12,30 @@ import (
 	"github.com/metacubex/mihomo/log"
 )
 
+type parsed struct {
+	O string
+	P map[string]any
+}
+
 // ConvertsV2Ray convert V2Ray subscribe proxies data to mihomo proxies config
 func ConvertsV2Ray(buf []byte) ([]map[string]any, error) {
+	if proxies, err := ConvertsV2RayNew(buf); err == nil {
+		result := []map[string]any{}
+		for _, p := range proxies {
+			result = append(result, p.P)
+		}
+		return result, nil
+	} else {
+		return nil, err
+	}
+}
+
+func ConvertsV2RayNew(buf []byte) ([]parsed, error) {
 	data := DecodeBase64(buf)
 
 	arr := strings.Split(string(data), "\n")
 
-	proxies := make([]map[string]any, 0, len(arr))
+	var proxies []parsed
 	names := make(map[string]int, 200)
 
 	for _, line := range arr {
@@ -67,7 +84,7 @@ func ConvertsV2Ray(buf []byte) ([]map[string]any, error) {
 			hysteria["up"] = up
 			hysteria["skip-cert-verify"], _ = strconv.ParseBool(query.Get("insecure"))
 
-			proxies = append(proxies, hysteria)
+			proxies = append(proxies, parsed{line, hysteria})
 
 		case "hysteria2", "hy2", "hysteria2+realm", "hy2+realm":
 			realmMode := strings.HasSuffix(scheme, "+realm")
@@ -113,7 +130,7 @@ func ConvertsV2Ray(buf []byte) ([]map[string]any, error) {
 				hysteria2["password"] = auth
 			}
 
-			proxies = append(proxies, hysteria2)
+			proxies = append(proxies, parsed{line, hysteria2})
 
 		case "tuic":
 			// A temporary unofficial TUIC share link standard
@@ -156,7 +173,7 @@ func ConvertsV2Ray(buf []byte) ([]map[string]any, error) {
 				tuic["udp-relay-mode"] = udpRelayMode
 			}
 
-			proxies = append(proxies, tuic)
+			proxies = append(proxies, parsed{line, tuic})
 
 		case "trojan":
 			urlTrojan, err := url.Parse(line)
@@ -217,7 +234,7 @@ func ConvertsV2Ray(buf []byte) ([]map[string]any, error) {
 				trojan["fingerprint"] = pcs
 			}
 
-			proxies = append(proxies, trojan)
+			proxies = append(proxies, parsed{line, trojan})
 
 		case "vless":
 			urlVLess, err := url.Parse(line)
@@ -240,7 +257,7 @@ func ConvertsV2Ray(buf []byte) ([]map[string]any, error) {
 			if encryption := query.Get("encryption"); encryption != "" {
 				vless["encryption"] = encryption
 			}
-			proxies = append(proxies, vless)
+			proxies = append(proxies, parsed{line, vless})
 
 		case "vmess":
 			// V2RayN-styled share link
@@ -264,7 +281,7 @@ func ConvertsV2Ray(buf []byte) ([]map[string]any, error) {
 				if encryption := query.Get("encryption"); encryption != "" {
 					vmess["cipher"] = encryption
 				}
-				proxies = append(proxies, vmess)
+				proxies = append(proxies, parsed{line, vmess})
 				continue
 			}
 
@@ -395,7 +412,7 @@ func ConvertsV2Ray(buf []byte) ([]map[string]any, error) {
 				vmess["grpc-opts"] = grpcOpts
 			}
 
-			proxies = append(proxies, vmess)
+			proxies = append(proxies, parsed{line, vmess})
 
 		case "ss":
 			urlSS, err := url.Parse(line)
@@ -482,7 +499,7 @@ func ConvertsV2Ray(buf []byte) ([]map[string]any, error) {
 				}
 			}
 
-			proxies = append(proxies, ss)
+			proxies = append(proxies, parsed{line, ss})
 
 		case "ssr":
 			dcBuf, err := TryDecodeBase64(body)
@@ -541,7 +558,7 @@ func ConvertsV2Ray(buf []byte) ([]map[string]any, error) {
 				ssr["protocol-param"] = protocolParam
 			}
 
-			proxies = append(proxies, ssr)
+			proxies = append(proxies, parsed{line, ssr})
 
 		case "socks", "socks5", "socks5h", "http", "https":
 			link, err := url.Parse(line)
@@ -593,7 +610,7 @@ func ConvertsV2Ray(buf []byte) ([]map[string]any, error) {
 				socks["tls"] = true
 			}
 
-			proxies = append(proxies, socks)
+			proxies = append(proxies, parsed{line, socks})
 
 		case "anytls":
 			// https://github.com/anytls/anytls-go/blob/main/docs/uri_scheme.md
@@ -636,7 +653,7 @@ func ConvertsV2Ray(buf []byte) ([]map[string]any, error) {
 			anytls["skip-cert-verify"] = insecureBool
 			anytls["udp"] = true
 
-			proxies = append(proxies, anytls)
+			proxies = append(proxies, parsed{line, anytls})
 
 		case "mierus":
 			urlMieru, err := url.Parse(line)
@@ -704,7 +721,7 @@ func ConvertsV2Ray(buf []byte) ([]map[string]any, error) {
 					mieru["traffic-pattern"] = trafficPattern
 				}
 
-				proxies = append(proxies, mieru)
+				proxies = append(proxies, parsed{line, mieru})
 			}
 		}
 	}

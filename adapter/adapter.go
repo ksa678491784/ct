@@ -2,12 +2,15 @@ package adapter
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net"
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/davegardnerisme/deephash"
 
 	"github.com/metacubex/mihomo/common/atomic"
 	"github.com/metacubex/mihomo/common/queue"
@@ -36,6 +39,9 @@ type Proxy struct {
 	alive   atomic.Bool
 	history *queue.Queue[C.DelayHistory]
 	extra   xsync.Map[string, *internalProxyState]
+	mapping map[string]any
+	hash    string
+	proxyln string
 }
 
 // Adapter implements C.Proxy
@@ -278,11 +284,46 @@ func (p *Proxy) URLTest(ctx context.Context, url string, expectedStatus utils.In
 	return
 }
 
-func NewProxy(adapter C.ProxyAdapter) *Proxy {
+func (p *Proxy) Mapping() map[string]any {
+	return p.mapping
+}
+
+func (p *Proxy) MappingHash() string {
+	return p.hash
+}
+
+func (p *Proxy) ProxyLine() string {
+	return p.proxyln
+}
+
+type CustomProxyPrms struct {
+	mapping map[string]any
+	hash    string
+	proxyln string
+}
+
+func WithCustomProxyParams(mapping map[string]any, proxyln string) func(*CustomProxyPrms) {
+	return func(opt *CustomProxyPrms) {
+		opt.mapping = mapping
+		opt.hash = hex.EncodeToString(deephash.Hash(mapping)[:])
+		opt.proxyln = proxyln
+	}
+}
+
+func NewProxy(adapter C.ProxyAdapter, prms ...func(*CustomProxyPrms)) *Proxy {
+	params := CustomProxyPrms{}
+	params.mapping = map[string]any{}
+	for _, prm := range prms {
+		prm(&params)
+	}
+
 	return &Proxy{
 		ProxyAdapter: adapter,
 		history:      queue.New[C.DelayHistory](defaultHistoriesNum),
 		alive:        atomic.NewBool(true),
+		mapping:      params.mapping,
+		hash:         params.hash,
+		proxyln:      params.proxyln,
 	}
 }
 

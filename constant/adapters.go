@@ -168,6 +168,9 @@ type Proxy interface {
 	ExtraDelayHistories() map[string]ProxyState
 	LastDelayForTestUrl(url string) uint16
 	URLTest(ctx context.Context, url string, expectedStatus utils.IntRanges[uint16]) (uint16, error)
+	Mapping() map[string]any
+	MappingHash() string
+	ProxyLine() string
 }
 
 // AdapterType is enum of adapter type

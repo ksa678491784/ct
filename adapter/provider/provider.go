@@ -19,6 +19,7 @@ import (
 	C "github.com/metacubex/mihomo/constant"
 	P "github.com/metacubex/mihomo/constant/provider"
 	"github.com/metacubex/mihomo/log"
+	T "github.com/metacubex/mihomo/tunnel"
 	"github.com/metacubex/mihomo/tunnel/statistic"
 
 	"github.com/dlclark/regexp2"
@@ -342,6 +343,14 @@ func (cp *CompatibleProvider) Close() error {
 }
 
 func NewProxiesParser(pdName string, tunnel C.Tunnel, filter string, excludeFilter string, excludeType string, dialerProxy string, override overrideSchema, ageSecretKey string) (resource.Parser[[]C.Proxy], error) {
+	return newProxiesParserWithOption(pdName, tunnel, filter, excludeFilter, excludeType, dialerProxy, override, ageSecretKey)
+}
+
+func NewProxiesParserSimple(pdName string) (resource.Parser[[]C.Proxy], error) {
+	return newProxiesParserWithOption(pdName, T.Tunnel, "", "", "", "", overrideSchema{}, "")
+}
+
+func newProxiesParserWithOption(pdName string, tunnel C.Tunnel, filter string, excludeFilter string, excludeType string, dialerProxy string, override overrideSchema, ageSecretKey string) (resource.Parser[[]C.Proxy], error) {
 	var excludeTypeArray []string
 	if excludeType != "" {
 		excludeTypeArray = strings.Split(excludeType, "|")
@@ -382,12 +391,19 @@ func NewProxiesParser(pdName string, tunnel C.Tunnel, filter string, excludeFilt
 			return nil, fmt.Errorf("decrypt config error: %w", err)
 		}
 
+		proxyLines := []string{}
+
 		if err := yaml.Unmarshal(buf, schema); err != nil {
-			proxies, err1 := convert.ConvertsV2Ray(buf)
+			proxies, err1 := convert.ConvertsV2RayNew(buf)
 			if err1 != nil {
 				return nil, fmt.Errorf("%w, %w", err, err1)
 			}
-			schema.Proxies = proxies
+			schema.Proxies = make([]map[string]any, len(proxies))
+			proxyLines = make([]string, len(proxies))
+			for i, p := range proxies {
+				schema.Proxies[i] = p.P
+				proxyLines[i] = p.O
+			}
 		}
 
 		if schema.Proxies == nil {
@@ -447,7 +463,7 @@ func NewProxiesParser(pdName string, tunnel C.Tunnel, filter string, excludeFilt
 					return nil, fmt.Errorf("proxy %d override error: %w", idx, err)
 				}
 
-				proxy, err := adapter.ParseProxy(mapping, adapter.WithTunnelForAPI(tunnel), adapter.WithProviderName(pdName))
+				proxy, err := adapter.ParseProxy(mapping, adapter.WithTunnelForAPI(tunnel), adapter.WithProviderName(pdName), adapter.WithProxyLine(proxyLines[idx]))
 				if err != nil {
 					log.Errorln(
 						"proxy provider %s error: proxy %d error: %s",

@@ -5,6 +5,7 @@ go 1.20
 require (
 	github.com/bahlo/generic-list-go v0.2.0
 	github.com/coreos/go-iptables v0.8.0
+	github.com/davegardnerisme/deephash v0.0.0-20210406090112-6d072427d830
 	github.com/dlclark/regexp2 v1.12.0
 	github.com/enfein/mieru/v3 v3.34.0
 	github.com/gobwas/ws v1.4.0

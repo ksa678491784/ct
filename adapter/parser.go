@@ -225,13 +225,14 @@ func ParseProxy(mapping map[string]any, options ...ProxyOption) (C.Proxy, error)
 	}
 
 	proxy = outbound.NewAutoCloseProxyAdapter(proxy)
-	return NewProxy(proxy), nil
+	return NewProxy(proxy, WithCustomProxyParams(mapping, opt.ProxyLine)), nil
 }
 
 type proxyOption struct {
 	DialerForAPI C.Dialer
 	TunnelForAPI C.Tunnel
 	ProviderName string
+	ProxyLine    string
 }
 
 func applyProxyOptions(options ...ProxyOption) proxyOption {
@@ -259,5 +260,11 @@ func WithTunnelForAPI(tunnel C.Tunnel) ProxyOption {
 func WithProviderName(name string) ProxyOption {
 	return func(opt *proxyOption) {
 		opt.ProviderName = name
+	}
+}
+
+func WithProxyLine(line string) ProxyOption {
+	return func(opt *proxyOption) {
+		opt.ProxyLine = line
 	}
 }
