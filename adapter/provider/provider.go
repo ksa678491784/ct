@@ -18,6 +18,7 @@ import (
 	"github.com/metacubex/mihomo/component/resource"
 	C "github.com/metacubex/mihomo/constant"
 	P "github.com/metacubex/mihomo/constant/provider"
+	"github.com/metacubex/mihomo/log"
 	"github.com/metacubex/mihomo/tunnel/statistic"
 
 	"github.com/dlclark/regexp2"
@@ -448,7 +449,13 @@ func NewProxiesParser(pdName string, tunnel C.Tunnel, filter string, excludeFilt
 
 				proxy, err := adapter.ParseProxy(mapping, adapter.WithTunnelForAPI(tunnel), adapter.WithProviderName(pdName))
 				if err != nil {
-					return nil, fmt.Errorf("proxy %d error: %w", idx, err)
+					log.Errorln(
+						"proxy provider %s error: proxy %d error: %s",
+						pdName,
+						idx,
+						err.Error(),
+					)
+					continue
 				}
 
 				proxiesSet[name] = struct{}{}
